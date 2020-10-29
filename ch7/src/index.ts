@@ -17,8 +17,18 @@ let c: any = a + b
 
 let a1: unknown = 30    // unknown
 let b1 = a1 === 123     // boolean
-let c1 = a1 + 10        // 에러 객체 타입이 unknown 임.
+// let c1 = a1 + 10        // 에러 객체 타입이 unknown 임.
 
 if ( typeof a === 'number' ) {
     let d = a + 10      // number
 }
+
+// boolean 타입은 true(참), false(거짓) 두 개의 값을 갖는다.
+
+let a2 = true   // boolean
+let b2 = false  // boolean
+const c2 = true  // true
+let d2: boolean = true // boolean
+let e2: true = true
+// let f2: true = false // 에러 'false' 타입을 'true' 타입에 할당할 수 없다.
+
