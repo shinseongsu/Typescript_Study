@@ -68,3 +68,4 @@ let a12 = Language4.English
 let b12 = Language4.Tagalog // 에러 Tagalog 프로퍼티 존재하지 않음
 let c12 = Language4[0]      // 에러 const enum 멤버는 문자열 리터럴로만 접근할수 있다.
 let d12 = Language4[6]      // 에러 const enum 멤버는 문자열 리터럴로만 접근할수 있다.
+
