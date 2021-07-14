@@ -123,31 +123,70 @@ var ajax = new XMLHttpRequest();
 var content = document.createElement('div');
 var NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
 var CONTENT_URL = 'https://api.hnpwa.com/v0/item/@id.json';
-ajax.open('GET', NEWS_URL, false);
-ajax.send();
-var newsFeed = JSON.parse(ajax.response);
-var ul = document.createElement('ul');
-window.addEventListener('hashchange', function () {
-  var id = location.hash.substr(1);
-  ajax.open('GET', CONTENT_URL.replace('@id', id), false);
-  ajax.send();
-  var newsContent = JSON.parse(ajax.response);
-  var title = document.createElement('h1');
-  title.innerHTML = newsContent.title;
-  content.appendChild(title);
-});
+var store = {
+  currentPage: 1,
+  feeds: []
+};
 
-for (var i = 0; i < 10; i++) {
-  var li = document.createElement('li');
-  var a = document.createElement('a');
-  a.href = "".concat(newsFeed[i].id);
-  a.innerHTML = "".concat(newsFeed[i].title, " (").concat(newsFeed[i].comments_count, ")");
-  li.appendChild(a);
-  ul.appendChild(li);
+function getData(url) {
+  ajax.open('GET', url, false);
+  ajax.send();
+  return JSON.parse(ajax.response);
 }
 
-container.appendChild(ul);
-container.appendChild(content);
+function newsFeed() {
+  var newsFeed = getData(NEWS_URL);
+  var newList = [];
+  var template = "\n        <div class=\"bg-gray-600 min-h-screen\">\n            <div class=\"bg-white text-xl\">\n                <div class=\"mx-auto px-4\">\n                    <div class=\"flex justify-between items-center py-6\">\n                        <div class=\"flex justify-start\">\n                            <h1 class=\"font-extrabold\">Hacker News</h1>\n                        </div>\n                        <div class=\"items-center justify-end\">\n                        <a href=\"#/page/{{__prev_page__}}\" class=\"text-gray-500\">\n                            Previous\n                        </a>\n                        <a href=\"#/page/{{__next_page__}}\" class=\"text-gray-500 ml-4\">\n                            Next\n                        </a>\n                    </div>\n                    </div>\n                </div>\n            </div>\n            <div class=\"p-4 text-2xl text-gray-700\">\n                {{__news_feed__}}\n            </div>\n        </div>\n    ";
+
+  for (var i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
+    newList.push("\n            <div class=\"p-6 bg-white mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100\">\n                <div class=\"flex\">\n                    <div class=\"flex-auto\">\n                        <a href=\"#/show/".concat(newsFeed[i].id, "\">").concat(newsFeed[i].title, "</a>\n                    </div>\n                    <div class=\"text-center text-sm\">\n                        <div class=\"w-10 text-white bg-green-300 rounded-lg px-0 py-2\">").concat(newsFeed[i].comments_count, "</div>\n                    </div>\n                </div>\n                <div class=\"flex mt-3\">\n                    <div class=\"grid grid-cols-3 text-sm text-gray-500\">\n                        <div><i class=\"fas fa-user mr-1\">").concat(newsFeed[i].user, "</i></div>\n                        <div><i class=\"fas fa-heart mr-1\">").concat(newsFeed[i].points, "</i></div>\n                        <div><i class=\"far fa-clock mr-1\">").concat(newsFeed[i].time_ago, "</i></div>\n                    </div>\n                </div>\n            </div>\n        "));
+  }
+
+  template = template.replace('{{__news_feed__}}', newList.join(''));
+  template = template.replace('{{__prev_page__}}', store.currentPage > 1 ? store.currentPage - 1 : 1);
+  template = template.replace('{{__next_page__}}', store.currentPage + 1);
+  container.innerHTML = template;
+}
+
+function newsDetail() {
+  var id = location.hash.substr(7);
+  var newsContent = getData(CONTENT_URL.replace('@id', id));
+  var template = "\n        <div class=\"bg-gray-600 min-h-screen pb-8\">\n            <div class=\"bg-white text-xl\">\n                <div class=\"mx-auto px-4\">\n                    <div class=\"flex justify-between items-center py-6\">\n                        <div class=\"flex justify-start\">\n                            <h1 class=\"font-extrabold\">Hacker News</h1>\n                        </div>\n                        <div class=\"items-center justify-end\">\n                            <a href=\"#/page/".concat(store.currentPage, "\" class=\"text-gray-500\">\n                                <i class=\"fa fa-times\"></i>\n                            </a>\n                        </div>\n                    </div>\n                </div>\n            </div>\n\n            <div class=\"h-full border rounded-xl bg-white m-6 p-4\">\n                <h2>").concat(newsContent.title, "</h2>\n                <div class=\"text-gray-400\">\n                    ").concat(newsContent.content, "\n                </div>\n\n                {{__comments__}}\n            </div>\n        </div>\n    ");
+
+  function makeComment(comments) {
+    var called = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+    var commentString = [];
+
+    for (var i = 0; i < comments.length; i++) {
+      commentString.push("\n                <div style=\"padding-left: 40px;\" class=\"mt-4\">\n                    <div class=\"text-gray-400\">\n                        <i class=\"fa fa-sort-up mr-2\"></i>\n                        <strong>".concat(comments[i].user, "</strong> ").concat(comments[i].time_age, "\n                    </div>\n                    <p class=\"text-gray-700\">").concat(comments[i].content, "</p>\n                </div>\n            "));
+
+      if (comments[i].comments.length > 0) {
+        commentString.push(makeComment(comments[i].comments, called + 1));
+      }
+    }
+
+    return commentString.join('');
+  }
+
+  container.innerHTML = template.replace('{{__comments__}}', makeComment(newsContent.comments));
+}
+
+function router() {
+  var routePath = location.hash;
+
+  if (routePath === '') {
+    newsFeed();
+  } else if (routePath.indexOf('#/page/') >= 0) {
+    store.currentPage = Number(routePath.substr(7));
+    newsFeed();
+  } else {
+    newsDetail();
+  }
+}
+
+window.addEventListener('hashchange', router);
+router();
 },{}],"../../../../.nvm/versions/node/v15.11.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -176,7 +215,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "49283" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "49733" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
