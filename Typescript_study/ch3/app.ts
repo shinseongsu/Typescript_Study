@@ -27,7 +27,6 @@ interface NewsComment extends News {
   readonly level: number;
 }
 
-const container: HTMLElement | null = document.getElementById("root");
 const ajax: XMLHttpRequest = new XMLHttpRequest();
 const NEWS_URL = "https://api.hnpwa.com/v0/news/1.json";
 const CONTENT_URL = "https://api.hnpwa.com/v0/item/@id.json";
@@ -65,27 +64,46 @@ class NewsDetailApi extends Api {
   }
 }
 
-function makeFeeds(feeds: NewsFeed[]): NewsFeed[] {
-  for (let i = 0; i < feeds.length; i++) {
-    feeds[i].read = false;
+class View {
+  template: string;
+  container: HTMLElement;
+  htmlList: string[];
+
+  constructor(containerId: string, template: string) {
+    const containerElement = document.getElementById(containerId);
+
+    if (!containerElement) {
+      throw "최상위 컨테이너가 없어 UI를 진행하지 못합니다.";
+    }
+
+    this.container = containerElement;
+    this.template = template;
+    this.htmlList = [];
   }
 
-  return feeds;
-}
+  updateView(html: string): void {
+    this.container.innerHTML = html;
+  }
 
-function updateView(html: string): void {
-  if (container) {
-    container.innerHTML = html;
-  } else {
-    console.error("최상위 컨테이가 없어 UI를 진행하지 못합니다.");
+  addHtml(htmlString: string): void {
+    this.htmlList.push(htmlString);
+  }
+
+  getHtml(): string {
+    return this.htmlList.join("");
+  }
+
+  setTemplateData(key: string, value: string): void {
+    this.template = this.template.replace(`{{__${key}__}}`, value);
   }
 }
 
-function newsFeed(): void {
-  const api = new NewsFeedApi(NEWS_URL);
-  let newsFeed: NewsFeed[] = store.feeds;
-  const newList = [];
-  let template = `
+class NewsFeedView extends View {
+  api: NewsFeedApi;
+  feeds: NewsFeed[];
+
+  constructor(containerId: string) {
+    let template = `
         <div class="bg-gray-600 min-h-screen">
             <div class="bg-white text-xl">
                 <div class="mx-auto px-4">
@@ -110,62 +128,81 @@ function newsFeed(): void {
         </div>
     `;
 
-  if (newsFeed.length === 0) {
-    newsFeed = store.feeds = makeFeeds(api.getData());
+    super(containerId, template);
+
+    this.api = new NewsFeedApi(NEWS_URL);
+    this.feeds = store.feeds;
+
+    if (this.feeds.length === 0) {
+      this.feeds = store.feeds = this.api.getData();
+      this.makeFeeds();
+    }
   }
 
-  for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
-    newList.push(`
+  render(): void {
+    for (
+      let i = (store.currentPage - 1) * 10;
+      i < store.currentPage * 10;
+      i++
+    ) {
+      const { id, title. comments_count, user, points, time_ago, read } = this.feeds[i];
+
+      this.addHtml(`
             <div class="p-6 ${
-              newsFeed[i].read ? "bg-red-500" : "bg-white"
+              read ? "bg-red-500" : "bg-white"
             } mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100">
                 <div class="flex">
                     <div class="flex-auto">
-                        <a href="#/show/${newsFeed[i].id}">${
-      newsFeed[i].title
-    }</a>
+                        <a href="#/show/${id}">${
+        title
+      }</a>
                     </div>
                     <div class="text-center text-sm">
                         <div class="w-10 text-white bg-green-300 rounded-lg px-0 py-2">${
-                          newsFeed[i].comments_count
+                          comments_count
                         }</div>
                     </div>
                 </div>
                 <div class="flex mt-3">
                     <div class="grid grid-cols-3 text-sm text-gray-500">
                         <div><i class="fas fa-user mr-1">${
-                          newsFeed[i].user
+                          user
                         }</i></div>
                         <div><i class="fas fa-heart mr-1">${
-                          newsFeed[i].points
+                          points
                         }</i></div>
                         <div><i class="far fa-clock mr-1">${
-                          newsFeed[i].time_ago
+                          time_ago
                         }</i></div>
                     </div>
                 </div>
             </div>
         `);
+    }
+
+    this.setTemplateData('news_feed',this.getHtml());
+    this.setTemplateData(
+      "prev_page",
+      String(store.currentPage > 1 ? store.currentPage - 1 : 1)
+    );
+    this.setTemplateData(
+      "next_page",
+      String(store.currentPage + 1)
+    );
+      
+    updateView(template);
   }
 
-  template = template.replace("{{__news_feed__}}", newList.join(""));
-  template = template.replace(
-    "{{__prev_page__}}",
-    String(store.currentPage > 1 ? store.currentPage - 1 : 1)
-  );
-  template = template.replace(
-    "{{__next_page__}}",
-    String(store.currentPage + 1)
-  );
-
-  updateView(template);
+  makeFeeds(): void {
+    for (let i = 0; i < this.feeds.length; i++) {
+      this.feeds[i].read = false;
+    }
+  }
 }
 
-function newsDetail(): void {
-  const id = location.hash.substr(7);
-  const api = new NewsDetailApi(CONTENT_URL.replace("@id", id));
-  const newsContent = api.getData();
-  let template = `
+class NewsDetailView extends View {
+  constructor(containerId: string) {
+    let template = `
         <div class="bg-gray-600 min-h-screen pb-8">
             <div class="bg-white text-xl">
                 <div class="mx-auto px-4">
@@ -193,44 +230,53 @@ function newsDetail(): void {
         </div>
     `;
 
-  for (let i = 0; i < store.feeds.length; i++) {
-    if (store.feeds[i].id === Number(id)) {
-      store.feeds[i].read = true;
-      break;
-    }
+    super(containerId, template);
   }
 
-  updateView(
-    template.replace("{{__comments__}}", makeComment(newsContent.comments))
-  );
-}
+  render() {
+    const id = location.hash.substr(7);
+    const api = new NewsDetailApi(CONTENT_URL.replace("@id", id));
+    const newsContent = api.getData();
 
-function makeComment(comments: NewsComment[]): string {
-  const commentString = [];
+    for (let i = 0; i < store.feeds.length; i++) {
+      if (store.feeds[i].id === Number(id)) {
+        store.feeds[i].read = true;
+        break;
+      }
+    }
 
-  for (let i = 0; i < comments.length; i++) {
-    const comment: NewsComment = comments[i];
+    this.setTemplateData(
+        "comments",
+        this.makeComment(newsContent.comments)
+      );
+    this.updateView();
+  }
 
-    commentString.push(`
+  makeComment(comments: NewsComment[]): string {
+    for (let i = 0; i < comments.length; i++) {
+      const comment: NewsComment = comments[i];
+
+      this.addHtml(`
                 <div style="padding-left: ${
                   comments[i].level * 40
                 }px;" class="mt-4">
                     <div class="text-gray-400">
                         <i class="fa fa-sort-up mr-2"></i>
                         <strong>${comments[i].user}</strong> ${
-      comments[i].time_ago
-    }
+        comments[i].time_ago
+      }
                     </div>
                     <p class="text-gray-700">${comments[i].content}</p>
                 </div>
             `);
 
-    if (comments[i].comments.length > 0) {
-      commentString.push(makeComment(comments[i].comments));
+      if (comments[i].comments.length > 0) {
+        this.addHtml(makeComment(comments[i].comments));
+      }
     }
-  }
 
-  return commentString.join("");
+    return this.getHtml();
+  }
 }
 
 function router(): void {
