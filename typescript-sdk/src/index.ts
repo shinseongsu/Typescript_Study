@@ -1,6 +1,7 @@
 import Router from './core/router';
 import { NewsFeedView, NewsDetailView } from './page';
 import { Store } from './types';
+import globalThis from 'globalthis';
 
 const store: Store = {
   currentPage: 1,
@@ -19,23 +20,20 @@ const router: Router = new Router();
 const newsFeedView = new NewsFeedView('root');
 const newsDetailView = new NewsDetailView('root');
 
-export default class baroPayments {
+function baroPayments() {
+  return {
+    requestPayment: function (): void {
+      router.setDefaultPage(newsFeedView);
 
-  requestPayment = () => {
-    this.request();
-  }
+      router.addRoutePath('/page/', newsFeedView, /page\/(\d+)/);
+      router.addRoutePath('/show/', newsDetailView, /show\/(\d+)/);
 
-  private request(): void {
-    router.setDefaultPage(newsFeedView);
-
-    router.addRoutePath('/page/', newsFeedView, /page\/(\d+)/);
-    router.addRoutePath('/show/', newsDetailView, /show\/(\d+)/);
-  
-    router.go();
-  }
-  
+      router.go();
+    },
+    testConsole: function (): void {
+      console.log('1231231');
+    },
+  };
 }
 
-
-
- 
+export default { baroPayments, globalThis };

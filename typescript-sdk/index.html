@@ -13,11 +13,14 @@
 	</noscript>
   <div id="root">
   </div>
+  <!-- parcel js --> 
   <!-- <script src="src/index.ts" type="module"></script> -->
+
   <script src="dist/index.js"></script>
   <script type="text/JavaScript">
-	var baroPayment = new baroPayments();
-	baroPayment.requestPayment();
+	var baro = baroPayments();
+	baro.requestPayment();
+	baro.testConsole();
   </script>
 </body>
 </html>
